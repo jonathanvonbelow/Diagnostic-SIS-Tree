@@ -1,0 +1,8 @@
+{
+  "name": "Conifer Invasion Diagnostic System",
+  "description": "An interactive diagnostic tree to assess and guide governance strategies for conifer species invasion systems, complemented by an AI chat for deeper insights.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "prompt": ""
+}
