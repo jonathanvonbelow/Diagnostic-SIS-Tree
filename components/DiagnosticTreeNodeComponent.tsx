@@ -5,8 +5,12 @@ import { TreeNode, NodeType, HistoryStep } from '../types';
 interface DiagnosticTreeNodeProps {
   node: TreeNode;
   history: HistoryStep[];
-  onNavigateValue: (nodeId: string | undefined, value: number) => void;
-  onNavigateDirect: (nodeId: string | undefined) => void;
+  evaluationNotes: string;
+  setEvaluationNotes: (val: string) => void;
+  evaluationChecklist: string[];
+  setEvaluationChecklist: (val: string[]) => void;
+  onNavigateValue: (nodeId: string | undefined, value: number, notes?: string, checklist?: string[]) => void;
+  onNavigateDirect: (nodeId: string | undefined, notes?: string, checklist?: string[]) => void;
   onBack: () => void;
   onRestart: () => void;
   onExport: () => void;
@@ -42,6 +46,10 @@ const DiagnosticTreeNodeComponent: React.FC<DiagnosticTreeNodeProps> = ({
   onClose,
   canGoBack,
   t,
+  evaluationNotes,
+  setEvaluationNotes,
+  evaluationChecklist,
+  setEvaluationChecklist
 }) => {
   const { bgColor, borderColor, textColor, titleColor, icon, iconBg, accentBg } = getNodeStyling(node.type);
   const [isDetailsVisible, setIsDetailsVisible] = useState(false);
@@ -63,9 +71,21 @@ const DiagnosticTreeNodeComponent: React.FC<DiagnosticTreeNodeProps> = ({
     return t.ranking.yesStrong;
   };
 
+  const toggleCheckItem = (item: string) => {
+    setEvaluationChecklist(
+      evaluationChecklist.includes(item) 
+        ? evaluationChecklist.filter(i => i !== item) 
+        : [...evaluationChecklist, item]
+    );
+  };
+
   const handleNextWithSlider = () => {
     const targetId = sliderValue >= 50 ? node.yesNodeId : node.noNodeId;
-    onNavigateValue(targetId, sliderValue);
+    onNavigateValue(targetId, sliderValue, evaluationNotes, evaluationChecklist);
+  };
+
+  const handleNextDirect = () => {
+    onNavigateDirect(node.nextNodeId, evaluationNotes, evaluationChecklist);
   };
 
   const currentRanking = getRankingData(sliderValue);
@@ -113,12 +133,57 @@ const DiagnosticTreeNodeComponent: React.FC<DiagnosticTreeNodeProps> = ({
             </svg>
           </button>
           {isDetailsVisible && (
-            <div className="mt-2 text-sm leading-relaxed p-5 rounded-xl bg-slate-900/60 text-slate-300 border border-white/5 animate-fade-in shadow-inner">
+            <div className="mt-2 text-sm leading-relaxed p-5 rounded-xl bg-slate-900/60 text-slate-300 border border-white/5 animate-fade-in shadow-inner max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-teal-900">
               <p className="whitespace-pre-wrap">{node.details}</p>
             </div>
           )}
         </div>
       )}
+
+      {node.checkList && node.checkList.length > 0 && (
+        <div className="mb-6 space-y-3">
+          <label className="text-xs font-bold text-teal-400 uppercase tracking-widest block mb-2">{t.node.checklistLabel}</label>
+          <div className="grid grid-cols-1 gap-2">
+            {node.checkList.map((item, idx) => (
+              <label 
+                key={idx} 
+                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
+                  evaluationChecklist.includes(item) 
+                    ? 'bg-teal-500/10 border-teal-500/40 text-teal-100 shadow-[0_0_15px_rgba(20,184,166,0.1)]' 
+                    : 'bg-slate-900/40 border-white/5 text-slate-400 hover:border-white/10'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded flex items-center justify-center mr-3 transition-all ${
+                  evaluationChecklist.includes(item) ? 'bg-teal-500' : 'bg-slate-800 border border-slate-700'
+                }`}>
+                  {evaluationChecklist.includes(item) && (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3.4 h-3.4 text-white">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  )}
+                </div>
+                <input 
+                  type="checkbox" 
+                  className="hidden" 
+                  checked={evaluationChecklist.includes(item)}
+                  onChange={() => toggleCheckItem(item)}
+                />
+                <span className="text-sm font-medium">{item}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mb-8">
+        <label className="text-xs font-bold text-teal-400 uppercase tracking-widest block mb-2">{t.node.notesLabel}</label>
+        <textarea
+          value={evaluationNotes}
+          onChange={(e) => setEvaluationNotes(e.target.value)}
+          placeholder={t.node.notesPlaceholder}
+          className="w-full bg-slate-900/60 border border-white/10 rounded-xl p-4 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all placeholder:text-slate-600 min-h-[100px] resize-none"
+        />
+      </div>
 
       {isQuestion ? (
         <div className="mt-8 space-y-6">
@@ -153,7 +218,7 @@ const DiagnosticTreeNodeComponent: React.FC<DiagnosticTreeNodeProps> = ({
         </div>
       ) : node.nextNodeId ? (
         <button
-          onClick={() => onNavigateDirect(node.nextNodeId)}
+          onClick={handleNextDirect}
           className="w-full px-10 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-all font-bold shadow-lg flex items-center justify-center space-x-2"
         >
           <span>{t.node.continue}</span>

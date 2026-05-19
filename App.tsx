@@ -24,6 +24,8 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<Language | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(false);
+  const [evaluationNotes, setEvaluationNotes] = useState('');
+  const [evaluationChecklist, setEvaluationChecklist] = useState<string[]>([]);
 
   const [currentNodeId, setCurrentNodeId] = useState<string>('');
   const [history, setHistory] = useState<HistoryStep[]>([]);
@@ -68,11 +70,13 @@ const App: React.FC = () => {
   const currentNode = DIAGNOSTIC_TREE_DATA[currentNodeId];
 
   const onNodeClick = useCallback((id: string) => {
+    setEvaluationNotes('');
+    setEvaluationChecklist([]);
     setCurrentNodeId(id);
     setIsEvaluationOpen(true);
   }, []);
 
-  const navigateWithValue = useCallback((nodeId: string | undefined, val: number) => {
+  const navigateWithValue = useCallback((nodeId: string | undefined, val: number, notes?: string, checklist?: string[]) => {
     const currentFullNode = DIAGNOSTIC_TREE_DATA[currentNodeId];
     if (!currentFullNode) return;
 
@@ -80,30 +84,38 @@ const App: React.FC = () => {
       nodeId: currentNodeId,
       nodeText: currentFullNode.text,
       nodeType: currentFullNode.type,
-      answerValue: val
+      answerValue: val,
+      userNotes: notes,
+      checkedItems: checklist
     }]);
 
     if (!nodeId || !DIAGNOSTIC_TREE_DATA[nodeId]) {
       setIsEvaluationOpen(false);
     } else {
       setCurrentNodeId(nodeId);
+      setEvaluationNotes('');
+      setEvaluationChecklist([]);
     }
   }, [currentNodeId, DIAGNOSTIC_TREE_DATA]);
 
-  const navigateDirect = useCallback((nodeId: string | undefined) => {
+  const navigateDirect = useCallback((nodeId: string | undefined, notes?: string, checklist?: string[]) => {
     const currentFullNode = DIAGNOSTIC_TREE_DATA[currentNodeId];
     if (!currentFullNode) return;
 
     setHistory(prev => [...prev, {
       nodeId: currentNodeId,
       nodeText: currentFullNode.text,
-      nodeType: currentFullNode.type
+      nodeType: currentFullNode.type,
+      userNotes: notes,
+      checkedItems: checklist
     }]);
 
     if (!nodeId || !DIAGNOSTIC_TREE_DATA[nodeId]) {
       setIsEvaluationOpen(false);
     } else {
       setCurrentNodeId(nodeId);
+      setEvaluationNotes('');
+      setEvaluationChecklist([]);
     }
   }, [currentNodeId, DIAGNOSTIC_TREE_DATA]);
 
@@ -154,6 +166,12 @@ const App: React.FC = () => {
     history.forEach((step, i) => {
       content += `[${i + 1}] (${step.nodeId}) ${step.nodeText}\n`;
       if (step.answerValue !== undefined) content += `    Score: ${step.answerValue}%\n`;
+      if (step.checkedItems && step.checkedItems.length > 0) {
+        content += `    Verified Factors: ${step.checkedItems.join(', ')}\n`;
+      }
+      if (step.userNotes) {
+        content += `    Local Observations: ${step.userNotes}\n`;
+      }
     });
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -169,12 +187,19 @@ const App: React.FC = () => {
     setChatMessages(prev => [...prev, { id: Date.now().toString() + 'user', sender: 'user', text: userQuery, timestamp: new Date() }]);
     setIsChatLoading(true);
     try {
-      const aiResponseText = await getAiExplanation(userQuery, currentNode, lang, siteContext);
+      const aiResponseText = await getAiExplanation(
+        userQuery, 
+        currentNode, 
+        lang, 
+        siteContext, 
+        isEvaluationOpen ? evaluationNotes : undefined,
+        isEvaluationOpen ? evaluationChecklist : undefined
+      );
       setChatMessages(prev => [...prev, { id: Date.now().toString() + 'ai', sender: 'ai', text: aiResponseText, timestamp: new Date() }]);
     } catch (error) {
       setChatMessages(prev => [...prev, { id: Date.now().toString() + 'error', sender: 'ai', text: t.chat.error, timestamp: new Date() }]);
     } finally { setIsChatLoading(false); }
-  }, [currentNode, lang, t, siteContext]);
+  }, [currentNode, lang, t, siteContext, evaluationNotes, evaluationChecklist, isEvaluationOpen]);
 
   if (!lang) return <LanguageSelector onSelectLanguage={handleSelectLanguage} />;
   
@@ -206,7 +231,7 @@ const App: React.FC = () => {
           t={t} 
         />
 
-        <div className="relative w-full h-[600px] bg-slate-950 rounded-2xl border border-teal-900/40 shadow-inner overflow-hidden">
+        <div className="relative w-full h-[650px] lg:h-[800px] bg-slate-950 rounded-2xl border border-teal-900/40 shadow-inner overflow-hidden">
           <DiagnosticGraph 
             nodes={DIAGNOSTIC_TREE_DATA}
             history={history}
@@ -218,11 +243,15 @@ const App: React.FC = () => {
 
           {/* Evaluation Card Overlay */}
           {isEvaluationOpen && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-              <div className="w-full max-w-xl animate-scale-up">
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
+              <div className="w-full max-w-xl my-auto animate-scale-up">
                  <DiagnosticTreeNodeComponent
                     node={currentNode}
                     history={history}
+                    evaluationNotes={evaluationNotes}
+                    setEvaluationNotes={setEvaluationNotes}
+                    evaluationChecklist={evaluationChecklist}
+                    setEvaluationChecklist={setEvaluationChecklist}
                     onNavigateValue={navigateWithValue}
                     onNavigateDirect={navigateDirect}
                     onBack={handleBack}

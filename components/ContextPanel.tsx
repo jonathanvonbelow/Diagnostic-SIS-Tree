@@ -184,7 +184,7 @@ const ContextPanel: React.FC<ContextPanelProps> = ({ context, onContextChange, t
                  value={context.additionalNotes}
                  onChange={(e) => updateContext({ additionalNotes: e.target.value })}
                  placeholder={t.context.notesPlaceholder}
-                 className="w-full h-16 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg p-3 text-xs outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                 className="w-full h-32 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg p-3 text-xs outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                />
             </div>
           </div>

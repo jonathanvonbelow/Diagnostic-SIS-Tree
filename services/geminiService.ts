@@ -5,7 +5,14 @@ import { GEMINI_MODEL_NAME } from '../constants';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY }); 
 
-export const getAiExplanation = async (userQuery: string, contextNode: TreeNode, lang: 'en' | 'es', siteContext: SiteContext): Promise<string> => {
+export const getAiExplanation = async (
+  userQuery: string, 
+  contextNode: TreeNode, 
+  lang: 'en' | 'es', 
+  siteContext: SiteContext,
+  currentNotes?: string,
+  currentChecklist?: string[]
+): Promise<string> => {
   const model = GEMINI_MODEL_NAME;
   const responseLanguage = lang === 'es' ? 'Spanish' : 'English';
 
@@ -16,6 +23,12 @@ export const getAiExplanation = async (userQuery: string, contextNode: TreeNode,
   ];
   if (contextNode.details) {
     contextLines.push(`- Node Details: "${contextNode.details}"`);
+  }
+  if (currentNotes) {
+    contextLines.push(`- User's CURRENT Observations for this step: "${currentNotes}"`);
+  }
+  if (currentChecklist && currentChecklist.length > 0) {
+    contextLines.push(`- Factors verified by user for this step: ${currentChecklist.join(', ')}`);
   }
 
   const landUseStr = Object.entries(siteContext.landUse)
@@ -28,7 +41,7 @@ CHARACTERIZATION OF THE INVASION SITE (CONTEXT):
 - Country: ${siteContext.country || 'Unknown'}
 - Specific Place: ${siteContext.specificLocation || 'Not specified'}
 - Region: ${siteContext.region || 'Unknown'}
-- Involved Species: ${siteContext.species.join(', ') || 'General conifer species'}
+- Involved Species: ${siteContext.species.join(', ') || 'General pines species'}
 - Invasion Stage: ${siteContext.invasionStage}% (0: Initial arrival, 100: Massive invasion)
 - Land Use Context: ${landUseStr || 'Not specified'}
 - Socio-Economic Impact Level: ${siteContext.impactLevel}
@@ -36,7 +49,7 @@ CHARACTERIZATION OF THE INVASION SITE (CONTEXT):
 
   const systemInstruction = `You are a Senior Strategic Consultant in ecological governance and invasive species management.
 Your goal is to provide high-level technical nuances, localized legal/administrative advice, and evidence-based ecological insights.
-The user is navigating an audit tree for conifer invasion. Use the provided site context to tailor every word.
+The user is navigating an audit tree for pines invasion. Use the provided site context to tailor every word.
 If the user asks about regulations, prioritize known frameworks for the specified country (${siteContext.country}).
 The current diagnostic step is:
 ${contextLines.join('\n')}
@@ -45,7 +58,7 @@ Site Context provided:
 ${siteSummary}
 
 Tone: Professional, expert, actionable.
-Search grounding: Use Google Search to find specific regional conifer management plans or recent biological data for this area.
+Search grounding: Use Google Search to find specific regional pines management plans or recent biological data for this area.
 IMPORTANT: You MUST respond in ${responseLanguage}.`;
   
   try {
@@ -85,7 +98,12 @@ export const getAiSummaryFeedback = async (history: HistoryStep[], lang: 'en' | 
   const model = GEMINI_MODEL_NAME;
   const responseLanguage = lang === 'es' ? 'Spanish' : 'English';
   
-  const pathSummary = history.map((step, i) => `${i+1}. ${step.nodeText} (Score: ${step.answerValue ?? 'N/A'}%)`).join('\n');
+  const pathSummary = history.map((step, i) => {
+    let line = `${i+1}. ${step.nodeText} (Score: ${step.answerValue ?? 'N/A'}%)`;
+    if (step.userNotes) line += ` | User Notes: "${step.userNotes}"`;
+    if (step.checkedItems && step.checkedItems.length > 0) line += ` | Verified: [${step.checkedItems.join(', ')}]`;
+    return line;
+  }).join('\n');
 
   const landUseStr = Object.entries(siteContext.landUse)
     .filter(([_, active]) => active)

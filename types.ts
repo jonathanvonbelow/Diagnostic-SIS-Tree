@@ -32,6 +32,7 @@ export interface TreeNode {
   noNodeId?: string;
   nextNodeId?: string;
   position?: { x: number; y: number };
+  checkList?: string[];
 }
 
 export interface ChatMessage {
@@ -47,4 +48,6 @@ export interface HistoryStep {
   nodeType: NodeType;
   answerValue?: number; // 0 to 100 ranking
   answerLabel?: string; // e.g. "Likely No" to "Likely Yes"
+  userNotes?: string;
+  checkedItems?: string[];
 }

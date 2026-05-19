@@ -50,12 +50,26 @@ const getNodeIcon = (type: NodeType) => {
 };
 
 const DiagnosticGraph: React.FC<DiagnosticGraphProps> = ({ nodes, history, activeNodeId, onNodeClick, t, showStartInstruction }) => {
-  const [zoom, setZoom] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(0.6);
+  const [offset, setOffset] = useState({ x: 200, y: 50 });
   const [isDragging, setIsDragging] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  // Add useEffect to center on activeNodeId changes
+  useEffect(() => {
+    const activeNode = nodes[activeNodeId];
+    if (activeNode?.position) {
+      // Center the viewport on the active node
+      const containerWidth = 1000; // viewBox width
+      const containerHeight = 2100; // viewBox height
+      setOffset({
+        x: 500 - (activeNode.position.x * zoom),
+        y: 80 - (activeNode.position.y * zoom)
+      });
+    }
+  }, [activeNodeId]);
   
   const dragStart = useRef({ x: 0, y: 0 });
   const fullExportRef = useRef<HTMLDivElement>(null);
@@ -138,7 +152,7 @@ const DiagnosticGraph: React.FC<DiagnosticGraphProps> = ({ nodes, history, activ
       width="100%" 
       height="100%" 
       viewBox={viewBox} 
-      preserveAspectRatio="xMidYMid slice"
+      preserveAspectRatio="xMidYMid meet"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -152,6 +166,28 @@ const DiagnosticGraph: React.FC<DiagnosticGraphProps> = ({ nodes, history, activ
       </defs>
 
       <g transform={transformString}>
+        {/* Phase labels - add inside <g transform={transformString}> before nodes */}
+        <rect x="50" y="10" width="900" height="480" rx="16"
+          fill="none" stroke="rgba(20,184,166,0.15)" strokeWidth="1" strokeDasharray="8 4"/>
+        <text x="500" y="35" textAnchor="middle" fill="rgba(20,184,166,0.4)"
+          fontSize="12" fontWeight="bold">
+          {t.path?.phaseLabels?.phase1 || "Phase 1: Initial Diagnosis"}
+        </text>
+
+        <rect x="50" y="510" width="900" height="1050" rx="16"
+          fill="none" stroke="rgba(59,130,246,0.15)" strokeWidth="1" strokeDasharray="8 4"/>
+        <text x="500" y="535" textAnchor="middle" fill="rgba(59,130,246,0.4)"
+          fontSize="12" fontWeight="bold">
+          {t.path?.phaseLabels?.phase2 || "Phase 2: Governance Assessment"}
+        </text>
+
+        <rect x="50" y="1570" width="900" height="380" rx="16"
+          fill="none" stroke="rgba(34,197,94,0.15)" strokeWidth="1" strokeDasharray="8 4"/>
+        <text x="500" y="1590" textAnchor="middle" fill="rgba(34,197,94,0.4)"
+          fontSize="12" fontWeight="bold">
+          {t.path?.phaseLabels?.phase3 || "Phase 3: Improvement Opportunities"}
+        </text>
+
         {nodeIds.map(id => {
           const node = nodes[id];
           const targets = [node.yesNodeId, node.noNodeId, node.nextNodeId].filter(Boolean);
